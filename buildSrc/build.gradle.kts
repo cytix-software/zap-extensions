@@ -1,10 +1,11 @@
 plugins {
     `kotlin-dsl`
     id("com.diffplug.spotless") version "6.25.0"
-    id("org.zaproxy.common") version "0.3.0"
+    id("org.zaproxy.common") version "0.4.0-SNAPSHOT"
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 

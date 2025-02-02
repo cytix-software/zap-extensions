@@ -353,12 +353,19 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
                                     proxyHost,
                                     proxyPort);
 
+                    String oneTimeCode = "";
+                    try {
+                       oneTimeCode = userCreds.getOneTimeCode();
+                    } catch (UsernamePasswordAuthenticationCredentials.BadOTPException e) {
+                    }
+
                     if (AuthUtils.authenticateAsUser(
                             wd,
                             context,
                             loginPageUrl,
                             userCreds.getUsername(),
                             userCreds.getPassword(),
+                            oneTimeCode,
                             loginPageWait)) {
                         // Wait until the authentication request is identified
                         for (int i = 0; i < AuthUtils.getWaitLoopCount(); i++) {
@@ -627,6 +634,7 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
         };
     }
 
+
     @Override
     public ApiDynamicActionImplementor getSetCredentialsForUserApiAction() {
         return UsernamePasswordAuthenticationCredentials.getSetCredentialsForUserApiAction(this);
@@ -643,9 +651,13 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
         private static final String PASSWORD_LABEL =
                 Constant.messages.getString(
                         "authentication.method.fb.credentials.field.label.pass");
+        private static final String MFA_LABEL =
+                Constant.messages.getString(
+                        "authentication.method.fb.credentials.field.label.mfauri");
 
         private ZapTextField usernameTextField;
         private JPasswordField passwordTextField;
+        private ZapTextField mfaUriField;
 
         public UsernamePasswordAuthenticationCredentialsOptionsPanel(
                 UsernamePasswordAuthenticationCredentials credentials) {
@@ -671,6 +683,16 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
             this.add(
                     this.passwordTextField,
                     LayoutHelper.getGBC(1, 1, 1, 1.0d, new Insets(0, 4, 0, 0)));
+
+            this.add(new JLabel(MFA_LABEL), LayoutHelper.getGBC(0, 2, 1, 0.0d));
+            this.mfaUriField = new ZapTextField();
+            if (this.getCredentials().getMfaUri() != null) {
+              this.mfaUriField.setText(this.getCredentials().getMfaUri());
+            }
+            this.add(
+                    this.mfaUriField,
+                    LayoutHelper.getGBC(1, 2, 1, 1.0d, new Insets(0, 4, 0, 0)));
+
         }
 
         @Override
@@ -688,6 +710,7 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
             return true;
         }
 
+        //I really don't like this code because it violates encapsulation
         @Override
         public void saveCredentials() {
             try {
@@ -700,6 +723,12 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
                         getField(getCredentials(), "password"),
                         getCredentials(),
                         new String(passwordTextField.getPassword()),
+                        true);
+
+                FieldUtils.writeField(
+                        getField(getCredentials(), "mfaURI"),
+                        getCredentials(),
+                        mfaUriField.getText(),
                         true);
             } catch (Exception e) {
                 LOGGER.error(e.getMessage(), e);

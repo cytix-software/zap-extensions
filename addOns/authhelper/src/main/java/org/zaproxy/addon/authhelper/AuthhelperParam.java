@@ -28,12 +28,14 @@ public class AuthhelperParam extends AbstractParam {
 
     private static final String LOGIN_URL_KEY = AUTO_KEY + ".loginurl";
     private static final String USERNAME_KEY = AUTO_KEY + ".username";
+    private static final String MFA_KEY = AUTO_KEY + ".MFA";
     private static final String BROWSER_KEY = AUTO_KEY + ".browser";
     private static final String WAIT_KEY = AUTO_KEY + ".wait";
     private static final String DEMO_MODE_KEY = AUTO_KEY + ".demo";
 
     private String loginUrl;
     private String username;
+    private String mfa;
     private String browser;
     private int wait = 2;
     private boolean demoMode;
@@ -44,6 +46,7 @@ public class AuthhelperParam extends AbstractParam {
     protected void parse() {
         this.loginUrl = this.getString(LOGIN_URL_KEY, "");
         this.username = this.getString(USERNAME_KEY, null);
+        this.mfa = this.getString(MFA_KEY, null);
         this.browser = this.getString(BROWSER_KEY, Browser.FIREFOX.getId());
         this.wait = getInteger(WAIT_KEY, 2);
         this.demoMode = getBoolean(DEMO_MODE_KEY, false);
@@ -80,6 +83,10 @@ public class AuthhelperParam extends AbstractParam {
         return username;
     }
 
+    public String getMFAToken() {
+        return mfa;
+    }
+    
     public void setUsername(String username) {
         this.username = username;
         getConfig().setProperty(USERNAME_KEY, username);

@@ -3,7 +3,7 @@ import org.zaproxy.gradle.spotless.ValidateImports
 
 plugins {
     id("com.diffplug.spotless")
-    id("org.zaproxy.common") version "0.3.0" apply false
+    id("org.zaproxy.common") version "0.4.0-SNAPSHOT" apply false
     id("com.github.ben-manes.versions") version "0.50.0"
     id("org.sonarqube") version "4.3.0.3225"
     id("net.ltgt.errorprone") version "3.1.0"
@@ -27,6 +27,7 @@ allprojects {
     apply(plugin = "io.freefair.lombok")
 
     repositories {
+        mavenLocal()
         mavenCentral()
     }
 

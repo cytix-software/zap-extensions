@@ -78,6 +78,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
     private static final String LOGIN_URL_LABEL = "authhelper.auth.test.dialog.label.loginurl";
     private static final String PASSWORD_LABEL = "authhelper.auth.test.dialog.label.password";
     private static final String USERNAME_LABEL = "authhelper.auth.test.dialog.label.username";
+    private static final String MFA_LABEL = "authhelper.auth.test.dialog.label.mfatoken";
     private static final String BROWSER_LABEL = "authhelper.auth.test.dialog.label.browser";
     private static final String WAIT_LABEL = "authhelper.auth.test.dialog.label.wait";
     private static final String DEMO_LABEL = "authhelper.auth.test.dialog.label.demo";
@@ -99,6 +100,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
     private JPanel resultsPanel;
     private JLabel usernameFieldLabel = new JLabel();
     private JLabel passwordFieldLabel = new JLabel();
+    private JLabel mfaFieldLabel = new JLabel();
     private JLabel statusLabel = new JLabel();
     private JLabel sessionIdLabel = new JLabel();
     private JLabel verifIdLabel = new JLabel();
@@ -106,6 +108,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
     private ZapTextArea diagnosticField;
     private Boolean usernameFieldFound;
     private Boolean passwordFieldFound;
+    private Boolean mfaFieldFound;
 
     private ExtensionAuthhelper ext;
 
@@ -128,6 +131,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
                 Constant.messages.getString("authhelper.auth.test.dialog.default-context"));
         this.addTextField(0, USERNAME_LABEL, params.getUsername());
         this.addPasswordField(0, PASSWORD_LABEL, "");
+        this.addTextField(0, MFA_LABEL, params.getMFAToken());
 
         ExtensionSelenium extSel =
                 Control.getSingleton().getExtensionLoader().getExtension(ExtensionSelenium.class);
@@ -205,6 +209,12 @@ public class AuthTestDialog extends StandardFieldsDialog {
             resultsPanel.add(
                     new JLabel(
                             Constant.messages.getString(
+                                    "authhelper.auth.test.dialog.results.mfa")),
+                    LayoutHelper.getGBC(0, y, 1, 1L, insets));
+            resultsPanel.add(mfaFieldLabel, LayoutHelper.getGBC(1, y++, 1, 1L, insets));
+            resultsPanel.add(
+                    new JLabel(
+                            Constant.messages.getString(
                                     "authhelper.auth.test.dialog.results.session")),
                     LayoutHelper.getGBC(0, y, 1, 1L, insets));
             resultsPanel.add(sessionIdLabel, LayoutHelper.getGBC(1, y++, 1, 1L, insets));
@@ -227,6 +237,8 @@ public class AuthTestDialog extends StandardFieldsDialog {
         usernameFieldLabel.setIcon(GREY_BALL);
         passwordFieldLabel.setText("");
         passwordFieldLabel.setIcon(GREY_BALL);
+        mfaFieldLabel.setText("");
+        mfaFieldLabel.setIcon(GREY_BALL);
         sessionIdLabel.setText("");
         sessionIdLabel.setIcon(GREY_BALL);
         verifIdLabel.setText("");
@@ -268,11 +280,12 @@ public class AuthTestDialog extends StandardFieldsDialog {
 
             // Set up user
             String username = this.getStringValue(USERNAME_LABEL);
-            User user = new User(context.getId(), username);
+            String password = this.getStringValue(PASSWORD_LABEL);
+            String mfauri = this.getStringValue(MFA_LABEL);
             UsernamePasswordAuthenticationCredentials upCreds =
                     new UsernamePasswordAuthenticationCredentials(
-                            username, this.getStringValue(PASSWORD_LABEL));
-            user.setAuthenticationCredentials(upCreds);
+                            username, password, mfauri);
+            User user = new User(context.getId(), username, upCreds);
             user.setEnabled(true);
             Control.getSingleton()
                     .getExtensionLoader()
@@ -308,6 +321,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
             // Assume they will work as we only gets stats on failure
             usernameFieldFound = true;
             passwordFieldFound = true;
+            mfaFieldFound = true;
 
             statsListener =
                     new DefaultStatsListener() {
@@ -319,6 +333,9 @@ public class AuthTestDialog extends StandardFieldsDialog {
                             }
                             if (AuthUtils.AUTH_NO_PASSWORD_FIELD_STATS.equals(key)) {
                                 passwordFieldFound = false;
+                            }
+                            if (AuthUtils.AUTH_NO_MFA_FIELD_STATS.equals(key)) {
+                                mfaFieldFound = false;
                             }
                             if (AuthUtils.AUTH_FOUND_FIELDS_STATS.equals(key)) {
                                 usernameFieldFound = true;
@@ -379,6 +396,11 @@ public class AuthTestDialog extends StandardFieldsDialog {
                     passwordFieldLabel.setText(FOUND_STR);
                     passwordFieldLabel.setIcon(GREEN_BALL);
                     score++;
+                }
+                if (StringUtils.isBlank(mfaFieldLabel.getText())
+                        && Boolean.TRUE.equals(passwordFieldFound)) {
+                    mfaFieldLabel.setText(FOUND_STR);
+                    mfaFieldLabel.setIcon(GREEN_BALL);
                 }
 
                 if (score >= 4) {
@@ -456,8 +478,12 @@ public class AuthTestDialog extends StandardFieldsDialog {
     @Override
     public String validateFields() {
         String url = this.getStringValue(LOGIN_URL_LABEL).toLowerCase();
+        String mfauri = this.getStringValue(MFA_LABEL).toLowerCase();
         if (url.isBlank()) {
             return Constant.messages.getString("authhelper.auth.test.dialog.error.nourl");
+        }
+        if (!mfauri.startsWith("otpauth://") && !mfauri.isBlank()) {
+            return Constant.messages.getString("authhelper.auth.test.dialog.error.badmfauri");
         }
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             return Constant.messages.getString("authhelper.auth.test.dialog.error.badurl");

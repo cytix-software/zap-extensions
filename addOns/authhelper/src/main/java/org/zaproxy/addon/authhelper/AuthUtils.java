@@ -74,10 +74,15 @@ import org.zaproxy.zap.users.User;
 import org.zaproxy.zap.utils.Pair;
 import org.zaproxy.zap.utils.Stats;
 
+import com.eatthepath.otp.TimeBasedOneTimePasswordGenerator;
+import java.util.Optional;
+import java.util.Comparator;
+
 public class AuthUtils {
 
     public static final String AUTH_NO_USER_FIELD_STATS = "stats.auth.browser.nouserfield";
     public static final String AUTH_NO_PASSWORD_FIELD_STATS = "stats.auth.browser.nopasswordfield";
+    public static final String AUTH_NO_MFA_FIELD_STATS = "stats.auth.browser.nomfafield";
     public static final String AUTH_FOUND_FIELDS_STATS = "stats.auth.browser.foundfields";
     public static final String AUTH_SESSION_TOKEN_STATS_PREFIX = "stats.auth.sessiontoken.";
     public static final String AUTH_SESSION_TOKENS_MAX = "stats.auth.sessiontokens.max";
@@ -88,6 +93,10 @@ public class AuthUtils {
     public static final String[] JSON_IDS = {"accesstoken", "token"};
     private static final String[] USERNAME_FIELD_INDICATORS = {
         "email", "signinname", "uname", "user"
+    };
+
+    private static final String[] MFA_FIELD_INDICATORS = {
+        "otp", "totp", "mfa"
     };
 
     private static final int MIN_SESSION_COOKIE_LENGTH = 10;
@@ -203,6 +212,52 @@ public class AuthUtils {
         return null;
     }
 
+    private static int scoreElement(WebElement element) {
+      int score = 0;
+
+      // High weight for the autocomplete attribute if it equals "one-time-code"
+      String autocomplete = element.getDomAttribute("autocomplete");
+      if (autocomplete != null && autocomplete.equalsIgnoreCase("one-time-code")) {
+          score += 50;
+      }
+
+      // Keywords and expanded forms to search for
+      String[] keywords = {
+          "otp", "otc", "mfa",
+          "one","time","code",
+          "multi","factor", "multifactor"
+      };
+
+      // Check several attributes: id, name, placeholder, and class name
+      String[] attributes = {"id", "name", "placeholder", "class"};
+      for (String attr : attributes) {
+          String value = element.getDomAttribute(attr);
+          if (value != null) {
+              String lowerValue = value.toLowerCase();
+              for (String keyword : keywords) {
+                  if (lowerValue.contains(keyword)) {
+                      score += 10;
+                  }
+              }
+          }
+      }
+
+      // Slight additional score if the type is "tel" (commonly used to trigger numeric input)
+      String type = element.getDomAttribute("type");
+      if (type != null && type.equalsIgnoreCase("tel")) {
+          score += 15;
+      }
+
+      return score;
+    }
+
+    static WebElement getMfaField(List<WebElement> inputElements) {
+        Optional<WebElement> candidate = inputElements.stream()
+            .max(Comparator.comparingInt(AuthUtils::scoreElement));
+        return candidate.orElse(null);
+    }
+
+
     /**
      * Authenticate as the given user, by filling in and submitting the login form
      *
@@ -219,6 +274,7 @@ public class AuthUtils {
             String loginPageUrl,
             String username,
             String password,
+            String mfatoken,
             int waitInSecs) {
         wd.get(loginPageUrl);
         sleep(50);
@@ -228,12 +284,14 @@ public class AuthUtils {
 
         WebElement userField = null;
         WebElement pwdField = null;
+        WebElement mfaField = null;
         boolean userAdded = false;
 
         for (int i = 0; i < getWaitLoopCount(); i++) {
             List<WebElement> inputElements = wd.findElements(By.xpath("//input"));
             userField = getUserField(inputElements);
             pwdField = getPasswordField(inputElements);
+            mfaField = getMfaField(inputElements);
 
             if ((userField != null || userAdded) && pwdField != null) {
                 break;
@@ -249,6 +307,7 @@ public class AuthUtils {
                 if (demoMode) {
                     sleep(2000);
                 }
+
                 userAdded = true;
             }
             sleep(TIME_TO_SLEEP_IN_MSECS);
@@ -261,13 +320,13 @@ public class AuthUtils {
                     sleep(2000);
                 }
             }
+            //not sure if this will correctly handle the MFA token input appearing later
             try {
                 LOGGER.debug("Submitting password field on {}", wd.getCurrentUrl());
                 pwdField.sendKeys(password);
                 if (demoMode) {
                     sleep(2000);
                 }
-                pwdField.sendKeys(Keys.RETURN);
             } catch (Exception e) {
                 // Handle the case where the password field was present but hidden / disabled
                 LOGGER.debug("Handling hidden password field on {}", wd.getCurrentUrl());
@@ -280,7 +339,15 @@ public class AuthUtils {
                 if (demoMode) {
                     sleep(2000);
                 }
-                pwdField.sendKeys(Keys.RETURN);
+            }
+
+            if (mfaField != null) {
+              sleep(TIME_TO_SLEEP_IN_MSECS);
+              mfaField.sendKeys(mfatoken);
+              mfaField.sendKeys(Keys.RETURN);
+            } else {
+              incStatsCounter(loginPageUrl, AUTH_NO_MFA_FIELD_STATS);
+              pwdField.sendKeys(Keys.RETURN);
             }
 
             incStatsCounter(loginPageUrl, AUTH_FOUND_FIELDS_STATS);
@@ -303,6 +370,9 @@ public class AuthUtils {
         }
         if (pwdField == null) {
             incStatsCounter(loginPageUrl, AUTH_NO_PASSWORD_FIELD_STATS);
+        }
+        if (mfaField == null) {
+            incStatsCounter(loginPageUrl, AUTH_NO_MFA_FIELD_STATS);
         }
         incStatsCounter(loginPageUrl, AUTH_BROWSER_FAILED_STATS);
         return false;
@@ -786,12 +856,20 @@ public class AuthUtils {
         public void browserLaunched(SeleniumScriptUtils ssutils) {
             LOGGER.debug(
                     "AuthenticationBrowserHook - authenticating as {}", userCreds.getUsername());
+
+            String oneTimeCode = "";
+            try {
+               oneTimeCode = userCreds.getOneTimeCode();
+            } catch (UsernamePasswordAuthenticationCredentials.BadOTPException e) {
+              LOGGER.warn("BAD OTP EXCEPTION:", e.getMessage(), e);
+            }
             AuthUtils.authenticateAsUser(
                     ssutils.getWebDriver(),
                     context,
                     bbaMethod.getLoginPageUrl(),
                     userCreds.getUsername(),
                     userCreds.getPassword(),
+                    oneTimeCode,
                     bbaMethod.getLoginPageWait());
         }
     }

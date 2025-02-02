@@ -1,6 +1,6 @@
 plugins {
     `java-library`
-    id("org.zaproxy.common")
+    id("org.zaproxy.common") version "0.4.0-SNAPSHOT"
 }
 
 description = "Common test utilities for the add-ons."
@@ -19,7 +19,7 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 dependencies {
-    compileOnly("org.zaproxy:zap:2.16.0")
+    compileOnly("org.zaproxy:zap:2.17.0-SNAPSHOT")
     implementation(project(":addOns:network"))
     implementation("org.apache.httpcomponents.client5:httpclient5:5.2.1")
 

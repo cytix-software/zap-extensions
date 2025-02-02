@@ -70,5 +70,7 @@ dependencies {
     zapAddOn("spiderAjax")
     zapAddOn("client")
 
+    implementation("com.eatthepath:java-otp:0.3.1")
+
     testImplementation(project(":testutils"))
 }
