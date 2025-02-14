@@ -4,9 +4,26 @@ All notable changes to this add-on will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## Unreleased
+
+
+## [0.47.0] - 2025-02-12
+### Added
+- Method to get the YAML representation of a plan.
+
+## [0.46.0] - 2025-02-10
+### Changed
+- Read (and write) the TOTP data from user's credentials in the automation plan.
+
+## [0.45.0] - 2025-02-04
 ### Fixed
+- Correctly load numeric user passwords.
 - Address malformed HTML in the help.
 - Correct default value of `threadPerHost` property of the `activeScan-config` job's help.
+- Ensure the value zero is saved to the automation plan in the statistics test.
+
+### Added
+- Added support for Client Script Authentication when the Ajax Spider is used in conjunction with the Auth Helper add-on.
+- Add support for custom authentication steps in Browser Based Authentication.
 
 ## [0.44.0] - 2025-01-09
 ### Added
@@ -456,6 +473,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - First version.
 
+[0.47.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.47.0
+[0.46.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.46.0
+[0.45.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.45.0
 [0.44.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.44.0
 [0.43.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.43.0
 [0.42.0]: https://github.com/zaproxy/zap-extensions/releases/automation-v0.42.0

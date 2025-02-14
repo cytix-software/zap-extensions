@@ -43,6 +43,7 @@ import org.parosproxy.paros.model.Session;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.addon.authhelper.AutoDetectSessionManagementMethodType.AutoDetectSessionManagementMethod;
 import org.zaproxy.addon.authhelper.BrowserBasedAuthenticationMethodType.BrowserBasedAuthenticationMethod;
+import org.zaproxy.addon.authhelper.internal.StepsPanel;
 import org.zaproxy.addon.pscan.ExtensionPassiveScan2;
 import org.zaproxy.zap.ZAP;
 import org.zaproxy.zap.authentication.AuthenticationMethod;
@@ -105,6 +106,8 @@ public class AuthTestDialog extends StandardFieldsDialog {
     private JLabel sessionIdLabel = new JLabel();
     private JLabel verifIdLabel = new JLabel();
 
+    private StepsPanel stepsPanel;
+
     private ZapTextArea diagnosticField;
     private Boolean usernameFieldFound;
     private Boolean passwordFieldFound;
@@ -118,7 +121,9 @@ public class AuthTestDialog extends StandardFieldsDialog {
                 "authhelper.auth.test.dialog.title",
                 DisplayUtils.getScaledDimension(600, 480),
                 new String[] {
-                    "authhelper.auth.test.dialog.tab.test", "authhelper.auth.test.dialog.tab.diag"
+                    "authhelper.auth.test.dialog.tab.test",
+                    "authhelper.auth.test.dialog.tab.steps",
+                    "authhelper.auth.test.dialog.tab.diag"
                 });
 
         this.ext = ext;
@@ -144,7 +149,13 @@ public class AuthTestDialog extends StandardFieldsDialog {
         this.addCustomComponent(0, getResultsPanel());
         this.addPadding(0);
 
-        this.addMultilineField(1, DIAGNOSTICS_LABEL, "");
+        int tab = 1;
+        stepsPanel = new StepsPanel(this, true);
+        stepsPanel.setSteps(params.getSteps());
+        setCustomTabPanel(tab, stepsPanel.getPanel());
+
+        tab++;
+        addMultilineField(tab, DIAGNOSTICS_LABEL, "");
         diagnosticField = (ZapTextArea) this.getField(DIAGNOSTICS_LABEL);
         diagnosticField.setEditable(false);
         ext.setAuthDiagCollectorOutput(diagnosticField);
@@ -164,7 +175,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
         buttonPanel.add(copyButton, LayoutHelper.getGBC(1, 0, 1, 0.3D));
         buttonPanel.add(new JLabel(), LayoutHelper.getGBC(2, 0, 1, 0.3D));
 
-        this.addCustomComponent(1, COPY_LABEL, buttonPanel);
+        addCustomComponent(tab, COPY_LABEL, buttonPanel);
 
         ZapTextField text = (ZapTextField) this.getField(LOGIN_URL_LABEL);
         text.setText(params.getLoginUrl());
@@ -247,6 +258,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
 
     private void authenticate() {
         StatsListener statsListener = null;
+        boolean demoMode = getBoolValue(DEMO_LABEL);
         try {
             this.diagnosticField.setText("");
             ext.enableAuthDiagCollector(true);
@@ -275,6 +287,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
             String browserId = ((BrowserUI) browserCombo.getSelectedItem()).getBrowser().getId();
             am.setBrowserId(browserId);
             am.setLoginPageWait(this.getIntValue(WAIT_LABEL));
+            am.setAuthenticationSteps(stepsPanel.getSteps());
             reloadAuthenticationMethod(am);
             context.setAuthenticationMethod(am);
 
@@ -306,7 +319,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
             } catch (Exception e) {
                 // Ignore - not yet supported so will default to "poll"
             }
-            if (this.getBoolValue(DEMO_LABEL)) {
+            if (demoMode) {
                 AuthUtils.setDemoMode(true);
             }
 
@@ -429,7 +442,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
             if (statsListener != null) {
                 Stats.removeListener(statsListener);
             }
-            if (this.getBoolValue(DEMO_LABEL)) {
+            if (demoMode) {
                 AuthUtils.setDemoMode(false);
             }
             ext.enableAuthDiagCollector(false);
@@ -473,6 +486,7 @@ public class AuthTestDialog extends StandardFieldsDialog {
         params.setBrowser(((BrowserUI) browserCombo.getSelectedItem()).getBrowser().getId());
         params.setWait(this.getIntValue(WAIT_LABEL));
         params.setDemoMode(this.getBoolValue(DEMO_LABEL));
+        params.setSteps(stepsPanel.getSteps());
     }
 
     @Override

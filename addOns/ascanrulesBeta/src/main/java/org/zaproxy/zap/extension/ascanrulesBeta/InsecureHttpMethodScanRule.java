@@ -149,7 +149,7 @@ public class InsecureHttpMethodScanRule extends AbstractAppPlugin
             String thirdpartyHost = "www.google.com";
             int thirdpartyPort = 80;
             Pattern thirdPartyContentPattern =
-                    Pattern.compile("<title.*Google.*/title>", Pattern.CASE_INSENSITIVE);
+                    Pattern.compile("<title.*{1,10}Google.{1,25}/title>", Pattern.CASE_INSENSITIVE);
 
             // send an OPTIONS message, and see what the server reports. Do
             // not try any methods not listed in those results.
@@ -336,7 +336,7 @@ public class InsecureHttpMethodScanRule extends AbstractAppPlugin
 
     @Override
     public int getCweId() {
-        return 200; // Information Exposure (primarily via TRACK / TRACE)
+        return 749; // CWE-749: Exposed Dangerous Method or Function
     }
 
     @Override

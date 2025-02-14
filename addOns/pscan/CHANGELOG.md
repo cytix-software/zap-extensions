@@ -5,9 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+
+
+## [0.2.0] - 2025-02-12
+### Added
+- Allow add-ons to obtain the auto tagging tags.
+
 ### Changed
 - Correct help configuration to work with any language.
 - Maintenance changes.
+- Clarified passiveScan-wait > maxDuration documentation.
 
 ### Fixed
 - Fix broken link the help page.
@@ -37,5 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `passiveScan-wait`
 - Dynamically un/load add-on passive scan rules (Issue 7959).
 
+[0.2.0]: https://github.com/zaproxy/zap-extensions/releases/pscan-v0.2.0
 [0.1.0]: https://github.com/zaproxy/zap-extensions/releases/pscan-v0.1.0
 [0.0.1]: https://github.com/zaproxy/zap-extensions/releases/pscan-v0.0.1

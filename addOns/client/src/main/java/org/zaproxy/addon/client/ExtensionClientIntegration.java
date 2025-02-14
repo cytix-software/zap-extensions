@@ -613,8 +613,13 @@ public class ExtensionClientIntegration extends ExtensionAdaptor {
     }
 
     private void decPscanCount() {
-        if (hasView() && this.pscanStatus.getScanCount() > 0) {
-            ThreadUtils.invokeLater(pscanStatus::decScanCount);
+        if (hasView()) {
+            ThreadUtils.invokeLater(
+                    () -> {
+                        if (pscanStatus.getScanCount() > 0) {
+                            pscanStatus.decScanCount();
+                        }
+                    });
         }
     }
 
@@ -675,7 +680,9 @@ public class ExtensionClientIntegration extends ExtensionAdaptor {
     }
 
     void addZestStatement(String stmt) throws Exception {
+        LOGGER.debug("Got zest statement: {}", stmt);
         if (clientHandler == null) {
+            LOGGER.debug("Ignoring zest statement as no clientHandler");
             return;
         }
         clientHandler.addZestStatement(stmt);

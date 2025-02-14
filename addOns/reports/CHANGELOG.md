@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## Unreleased
 
 
+## [0.36.0] - 2025-02-12
+
+
 ## [0.35.0] - 2025-01-10
 ### Added
 - Stats counter to the main toolbar button (Issue 8375).
@@ -306,6 +309,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 - First version.
 
+[0.36.0]: https://github.com/zaproxy/zap-extensions/releases/reports-v0.36.0
 [0.35.0]: https://github.com/zaproxy/zap-extensions/releases/reports-v0.35.0
 [0.34.0]: https://github.com/zaproxy/zap-extensions/releases/reports-v0.34.0
 [0.33.0]: https://github.com/zaproxy/zap-extensions/releases/reports-v0.33.0

@@ -35,7 +35,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.Setter;
 import org.apache.commons.httpclient.URI;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.By;
@@ -109,6 +111,84 @@ class AuthUtilsUnitTest extends TestUtils {
         // Then
         assertThat(field, is(notNullValue()));
         assertThat(field.getDomAttribute("type"), is(equalTo("text")));
+    }
+
+    @Test
+    void shouldReturnUserTextFieldByDomProperty() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        inputElements.add(new TestWebElement("input", "password"));
+        TestWebElement inputField = new TestWebElement("input", "text");
+        inputField.setUseDomProperty(true);
+        inputElements.add(inputField);
+        inputElements.add(new TestWebElement("input", "checkbox"));
+
+        // When
+        WebElement field = AuthUtils.getUserField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("text")));
+    }
+
+    @Test
+    void shouldReturnUserTextFieldIgnoringNonDisplayedFields() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        // Registration form, not displayed.
+        TestWebElement inputField = new TestWebElement("input", "text");
+        inputField.setDisplayed(false);
+        inputElements.add(inputField);
+        inputField = new TestWebElement("input", "password");
+        inputField.setDisplayed(false);
+        inputElements.add(inputField);
+        // Login form, displayed.
+        inputElements.add(new TestWebElement("input", "text"));
+        inputElements.add(new TestWebElement("input", "password"));
+
+        // When
+        WebElement field = AuthUtils.getUserField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("text")));
+        assertThat(field.isDisplayed(), is(equalTo(true)));
+    }
+
+    @Test
+    void shouldReturnSingleFieldAsUserField() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        // Starting form with just username with custom input type.
+        inputElements.add(new TestWebElement("input", "customtype"));
+
+        // When
+        WebElement field = AuthUtils.getUserField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("customtype")));
+        assertThat(field.isDisplayed(), is(equalTo(true)));
+    }
+
+    @Test
+    void shouldReturnDisplayedSingleFieldAsUserField() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        // Some other form, not displayed.
+        TestWebElement inputField = new TestWebElement("input", "text");
+        inputField.setDisplayed(false);
+        inputElements.add(inputField);
+        // Starting form with just username with custom input type, displayed.
+        inputElements.add(new TestWebElement("input", "customtype"));
+
+        // When
+        WebElement field = AuthUtils.getUserField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("customtype")));
+        assertThat(field.isDisplayed(), is(equalTo(true)));
     }
 
     @Test
@@ -190,6 +270,48 @@ class AuthUtilsUnitTest extends TestUtils {
         // Then
         assertThat(field, is(notNullValue()));
         assertThat(field.getDomAttribute("type"), is(equalTo("password")));
+    }
+
+    @Test
+    void shouldReturnPasswordFieldByDomProperty() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        inputElements.add(new TestWebElement("input", "email"));
+        inputElements.add(new TestWebElement("input", "checkbox"));
+        TestWebElement inputField = new TestWebElement("input", "password");
+        inputField.setUseDomProperty(true);
+        inputElements.add(inputField);
+
+        // When
+        WebElement field = AuthUtils.getPasswordField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("password")));
+    }
+
+    @Test
+    void shouldReturnPasswordFieldIgnoringNonDisplayedFields() throws Exception {
+        // Given
+        List<WebElement> inputElements = new ArrayList<>();
+        // Registration form, not displayed.
+        TestWebElement inputField = new TestWebElement("input", "email");
+        inputField.setDisplayed(false);
+        inputElements.add(inputField);
+        inputField = new TestWebElement("input", "password");
+        inputField.setDisplayed(false);
+        inputElements.add(inputField);
+        // Login form, displayed.
+        inputElements.add(new TestWebElement("input", "email"));
+        inputElements.add(new TestWebElement("input", "password"));
+
+        // When
+        WebElement field = AuthUtils.getPasswordField(inputElements);
+
+        // Then
+        assertThat(field, is(notNullValue()));
+        assertThat(field.getDomAttribute("type"), is(equalTo("password")));
+        assertThat(field.isDisplayed(), is(equalTo(true)));
     }
 
     @Test
@@ -631,6 +753,9 @@ class AuthUtilsUnitTest extends TestUtils {
         private String type;
         private String id;
         private String name;
+        @Setter private boolean displayed = true;
+        @Setter private boolean useDomAttribute = true;
+        @Setter private boolean useDomProperty;
 
         TestWebElement(String tag, String type) {
             this.tag = tag;
@@ -667,6 +792,13 @@ class AuthUtilsUnitTest extends TestUtils {
 
         @Override
         public String getDomAttribute(String name) {
+            if (useDomAttribute) {
+                return getAttributeImpl(name);
+            }
+            return null;
+        }
+
+        private String getAttributeImpl(String name) {
             switch (name) {
                 case "id":
                     return id;
@@ -677,6 +809,14 @@ class AuthUtilsUnitTest extends TestUtils {
                 default:
                     return null;
             }
+        }
+
+        @Override
+        public @Nullable String getDomProperty(String name) {
+            if (useDomProperty) {
+                return getAttributeImpl(name);
+            }
+            return null;
         }
 
         @Override
@@ -712,7 +852,7 @@ class AuthUtilsUnitTest extends TestUtils {
 
         @Override
         public boolean isDisplayed() {
-            return false;
+            return displayed;
         }
 
         @Override

@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,7 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
 import net.sf.json.JSONObject;
@@ -61,6 +62,7 @@ import org.parosproxy.paros.network.HttpHeaderField;
 import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.addon.authhelper.BrowserBasedAuthenticationMethodType.BrowserBasedAuthenticationMethod;
+import org.zaproxy.addon.authhelper.internal.AuthenticationStep;
 import org.zaproxy.zap.authentication.AuthenticationCredentials;
 import org.zaproxy.zap.authentication.AuthenticationMethod;
 import org.zaproxy.zap.authentication.UsernamePasswordAuthenticationCredentials;
@@ -151,15 +153,22 @@ public class AuthUtils {
     }
 
     static WebElement getUserField(List<WebElement> inputElements) {
-        List<WebElement> filteredList =
-                inputElements.stream()
+        List<WebElement> filteredList = displayed(inputElements).toList();
+        if (filteredList.size() == 1) {
+            WebElement element = filteredList.get(0);
+            logFieldElement("Choosing only displayed", element);
+            return element;
+        }
+
+        filteredList =
+                filteredList.stream()
                         .filter(
-                                elem ->
-                                        "text".equalsIgnoreCase(elem.getDomAttribute("type"))
-                                                || "email"
-                                                        .equalsIgnoreCase(
-                                                                elem.getDomAttribute("type")))
-                        .collect(Collectors.toList());
+                                elem -> {
+                                    String type = getAttribute(elem, "type");
+                                    return "text".equalsIgnoreCase(type)
+                                            || "email".equalsIgnoreCase(type);
+                                })
+                        .toList();
 
         if (!filteredList.isEmpty()) {
             if (filteredList.size() > 1) {
@@ -168,29 +177,42 @@ public class AuthUtils {
                 for (WebElement we : filteredList) {
                     if (attributeContains(we, "id", USERNAME_FIELD_INDICATORS)
                             || attributeContains(we, "name", USERNAME_FIELD_INDICATORS)) {
-                        LOGGER.debug(
-                                "Choosing 'best' user field: name={} id={}",
-                                we.getDomAttribute("name"),
-                                we.getDomAttribute("id"));
+                        logFieldElement("Choosing 'best' user", we);
                         return we;
                     }
-                    LOGGER.debug(
-                            "Not yet choosing user field: name={} id={}",
-                            we.getDomAttribute("name"),
-                            we.getDomAttribute("id"));
+                    logFieldElement("Not yet choosing user", we);
                 }
             }
-            LOGGER.debug(
-                    "Choosing first user field: name={} id={}",
-                    filteredList.get(0).getDomAttribute("name"),
-                    filteredList.get(0).getDomAttribute("id"));
-            return filteredList.get(0);
+
+            WebElement element = filteredList.get(0);
+            logFieldElement("Choosing first user", element);
+            return element;
         }
         return null;
     }
 
+    private static void logFieldElement(String prefix, WebElement element) {
+        LOGGER.debug(
+                "{} field: name={} id={}",
+                prefix,
+                getAttribute(element, "name"),
+                getAttribute(element, "id"));
+    }
+
+    private static String getAttribute(WebElement element, String name) {
+        String value = element.getDomAttribute(name);
+        if (value != null) {
+            return value;
+        }
+        return element.getDomProperty(name);
+    }
+
+    private static Stream<WebElement> displayed(List<WebElement> elements) {
+        return elements.stream().filter(WebElement::isDisplayed);
+    }
+
     static boolean attributeContains(WebElement we, String attribute, String[] strings) {
-        String att = we.getDomAttribute(attribute);
+        String att = getAttribute(we, attribute);
         if (att == null) {
             return false;
         }
@@ -204,12 +226,10 @@ public class AuthUtils {
     }
 
     static WebElement getPasswordField(List<WebElement> inputElements) {
-        for (WebElement element : inputElements) {
-            if ("password".equalsIgnoreCase(element.getDomAttribute("type"))) {
-                return element;
-            }
-        }
-        return null;
+        return displayed(inputElements)
+                .filter(element -> "password".equalsIgnoreCase(getAttribute(element, "type")))
+                .findFirst()
+                .orElse(null);
     }
 
     private static int scoreElement(WebElement element) {
@@ -275,7 +295,8 @@ public class AuthUtils {
             String username,
             String password,
             String mfatoken,
-            int waitInSecs) {
+            int waitInSecs,
+            List<AuthenticationStep> steps) {
         wd.get(loginPageUrl);
         sleep(50);
         if (demoMode) {
@@ -286,16 +307,48 @@ public class AuthUtils {
         WebElement pwdField = null;
         WebElement mfaField = null;
         boolean userAdded = false;
+        boolean pwdAdded = false;
+
+        Iterator<AuthenticationStep> it = steps.stream().sorted().iterator();
+        for (; it.hasNext(); ) {
+            AuthenticationStep step = it.next();
+            if (!step.isEnabled()) {
+                continue;
+            }
+
+            if (step.getType() == AuthenticationStep.Type.AUTO_STEPS) {
+                break;
+            }
+
+            WebElement element = step.execute(wd, username, password);
+
+            switch (step.getType()) {
+                case USERNAME:
+                    userField = element;
+                    userAdded = true;
+                    break;
+
+                case PASSWORD:
+                    pwdField = element;
+                    pwdAdded = true;
+                    break;
+
+                default:
+            }
+
+            sleep(demoMode ? 2000 : TIME_TO_SLEEP_IN_MSECS);
+        }
 
         for (int i = 0; i < getWaitLoopCount(); i++) {
+            if ((userField != null || userAdded) && pwdField != null) {
+                break;
+            }
+
             List<WebElement> inputElements = wd.findElements(By.xpath("//input"));
             userField = getUserField(inputElements);
             pwdField = getPasswordField(inputElements);
             mfaField = getMfaField(inputElements);
 
-            if ((userField != null || userAdded) && pwdField != null) {
-                break;
-            }
             if (i > 1 && userField != null && pwdField == null && !userAdded) {
                 // Handle pages which require you to submit the username first
                 LOGGER.debug("Submitting just user field on {}", loginPageUrl);
@@ -322,10 +375,12 @@ public class AuthUtils {
             }
             //not sure if this will correctly handle the MFA token input appearing later
             try {
-                LOGGER.debug("Submitting password field on {}", wd.getCurrentUrl());
-                pwdField.sendKeys(password);
-                if (demoMode) {
-                    sleep(2000);
+                if (!pwdAdded) {
+                    LOGGER.debug("Submitting password field on {}", wd.getCurrentUrl());
+                    pwdField.sendKeys(password);
+                    if (demoMode) {
+                        sleep(2000);
+                    }
                 }
             } catch (Exception e) {
                 // Handle the case where the password field was present but hidden / disabled
@@ -348,6 +403,17 @@ public class AuthUtils {
             } else {
               incStatsCounter(loginPageUrl, AUTH_NO_MFA_FIELD_STATS);
               pwdField.sendKeys(Keys.RETURN);
+            }
+
+            for (; it.hasNext(); ) {
+                AuthenticationStep step = it.next();
+                if (!step.isEnabled()) {
+                    continue;
+                }
+
+                step.execute(wd, username, password);
+
+                sleep(demoMode ? 2000 : TIME_TO_SLEEP_IN_MSECS);
             }
 
             incStatsCounter(loginPageUrl, AUTH_FOUND_FIELDS_STATS);
@@ -658,7 +724,8 @@ public class AuthUtils {
         return findSessionTokenSource(token, -1);
     }
 
-    static SessionManagementRequestDetails findSessionTokenSource(String token, int firstId) {
+    public static SessionManagementRequestDetails findSessionTokenSource(
+            String token, int firstId) {
         ExtensionHistory extHist = AuthUtils.getExtension(ExtensionHistory.class);
         int lastId = extHist.getLastHistoryId();
         if (firstId == -1) {
@@ -870,7 +937,8 @@ public class AuthUtils {
                     userCreds.getUsername(),
                     userCreds.getPassword(),
                     oneTimeCode,
-                    bbaMethod.getLoginPageWait());
+                    bbaMethod.getLoginPageWait(),
+                    bbaMethod.getAuthenticationSteps());
         }
     }
 
