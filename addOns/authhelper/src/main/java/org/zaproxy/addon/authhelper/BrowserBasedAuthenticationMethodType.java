@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.time.Instant;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -265,7 +266,8 @@ public class BrowserBasedAuthenticationMethodType extends AuthenticationMethodTy
         public WebSession authenticate(
                 SessionManagementMethod sessionManagementMethod,
                 AuthenticationCredentials credentials,
-                User user)
+                User user,
+                Instant when)
                 throws UnsupportedAuthenticationCredentialsException {
             if (handler != null) {
                 handler.resetAuthMsg();

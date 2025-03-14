@@ -21,6 +21,7 @@ package org.zaproxy.addon.authhelper;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.time.Instant;
 import net.sf.json.JSON;
 import net.sf.json.JSONObject;
 import org.apache.commons.configuration.Configuration;
@@ -83,7 +84,8 @@ public class AutoDetectAuthenticationMethodType extends AuthenticationMethodType
         public WebSession authenticate(
                 SessionManagementMethod sessionManagementMethod,
                 AuthenticationCredentials credentials,
-                User user)
+                User user,
+                Instant when)
                 throws UnsupportedAuthenticationCredentialsException {
             return null;
         }

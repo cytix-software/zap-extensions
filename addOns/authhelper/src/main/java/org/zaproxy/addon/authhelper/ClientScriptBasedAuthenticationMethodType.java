@@ -32,6 +32,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.swing.DefaultComboBoxModel;
+import java.time.Instant;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -290,7 +291,8 @@ public class ClientScriptBasedAuthenticationMethodType extends ScriptBasedAuthen
         public WebSession authenticate(
                 SessionManagementMethod sessionManagementMethod,
                 AuthenticationCredentials credentials,
-                User user)
+                User user,
+                Instant when)
                 throws UnsupportedAuthenticationCredentialsException {
             if (!(credentials instanceof GenericAuthenticationCredentials)) {
                 user.getAuthenticationState()
